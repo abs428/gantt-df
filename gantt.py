@@ -61,16 +61,15 @@ def where(date, date_range):
 def gantt_to_excel(data: pd.DataFrame, start_col: str, end_col: str, duration_col: str, description: str, output: str, date_format: str = 'd-m-yyyy', colour='f79646', symbol=''):
     assert {start_col, end_col, duration_col, description}.issubset(
         data.columns), "Some of the columns are not present in the data"
-    data = data.copy()  # Don't mutate the original dataframe
     assert data.notnull().any(None), "Nulls are not permitted in the data."
+
+    data = data.copy()  # Don't mutate the original dataframe
     data[start_col] = pd.to_datetime(data[start_col])
     data[end_col] = pd.to_datetime(data[end_col])
 
     row_nums = {desc: row for row, desc in enumerate(data.groupby(
         description).apply(lambda x: x[start_col].min()).sort_values().index)}
-    # TODO: Switch to the df's index
-    assert 'priority_col' not in data, f"Data already contains a column called {priority_col}. Script just broke."
-    data['priority_col'] = data[description].map(row_nums)
+    data.index = data[description].map(row_nums)
 
     # Setting up the workbook object
     workbook = xlsxwriter.Workbook(output)
@@ -90,7 +89,7 @@ def gantt_to_excel(data: pd.DataFrame, start_col: str, end_col: str, duration_co
     for col, day in enumerate(date_range):
         worksheet.write(0, col+1, day, date_format)
 
-    endpoints = zip(data[start_col], data[end_col], data['priority_col'])
+    endpoints = zip(data[start_col], data[end_col], data.index)
     for task in data[description]:
         start, end, row = next(endpoints)
         worksheet.write(row + 1, 0, task, bold_format)
