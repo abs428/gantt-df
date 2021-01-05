@@ -51,7 +51,7 @@ def generate_date_series(start_date: str, end_date: str, weekend: typing.Iterabl
     assert weekend.issubset(days), "Weekend is not specified correctly."
 
     date_range = pd.date_range(start_date, end_date)
-    return pd.to_datetime([day for day in date_endrange if is_workday(day, weekend, holidays)])
+    return pd.to_datetime([day for day in date_range if is_workday(day, weekend, holidays)])
 
 
 def where(date, date_range):
