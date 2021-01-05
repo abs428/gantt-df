@@ -8,7 +8,7 @@ import arrow
 import typing
 import xlsxwriter
 
-days = tuple(
+DAYS = tuple(
     ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
 )
 
@@ -17,7 +17,7 @@ def is_workday(
     date: str, weekend: typing.Iterable, holidays: typing.Iterable = {}
 ) -> bool:
     """Helper function that returns True if the input is a workday. Optional argument `holidays` is an iterable of holidays"""
-    mapping = dict(enumerate(days))
+    mapping = dict(enumerate(DAYS))
     holidays = {arrow.get(day) for day in holidays}
     date = arrow.get(date)
     return (date not in holidays) and (mapping[date.weekday()] not in weekend)
@@ -55,7 +55,7 @@ def generate_date_series(
         A datetime index that contains the required dates
     """
     weekend = {elem.lower() for elem in weekend}
-    assert weekend.issubset(days), "Weekend is not specified correctly."
+    assert weekend.issubset(DAYS), "Weekend is not specified correctly."
 
     date_range = pd.date_range(start_date, end_date)
     return pd.to_datetime(
