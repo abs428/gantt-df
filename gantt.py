@@ -75,8 +75,8 @@ def gantt_to_excel(
     description: str,
     output: str,
     date_format: str = "d-m-yyyy",
-    colour="f79646",
-    symbol="",
+    colour: str = "f79646",
+    symbol: str = "",
 ):
     assert {start_col, end_col, duration_col, description}.issubset(
         data.columns
