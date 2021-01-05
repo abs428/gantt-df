@@ -59,12 +59,18 @@ def where(date, date_range):
 
 
 def gantt_to_excel(data: pd.DataFrame, start_col: str, end_col: str, duration_col: str, description: str, output: str, date_format: str = 'd-m-yyyy', colour='f79646', symbol=''):
-    '''
-    FIXME:
-    1. Doesn't handle multiple start and end dates for the same task
-    '''
     assert {start_col, end_col, duration_col, description}.issubset(
         data.columns), "Some of the columns are not present in the data"
+    data = data.copy()  # Don't mutate the original dataframe
+    assert data.notnull().any(None), "Nulls are not permitted in the data."
+    data[start_col] = pd.to_datetime(data[start_col])
+    data[end_col] = pd.to_datetime(data[end_col])
+
+    row_nums = {desc: row for row, desc in enumerate(data.groupby(
+        description).apply(lambda x: x[start_col].min()).sort_values().index)}
+    # TODO: Switch to the df's index
+    assert 'priority_col' not in data, f"Data already contains a column called {priority_col}. Script just broke."
+    data['priority_col'] = data[description].map(row_nums)
 
     # Setting up the workbook object
     workbook = xlsxwriter.Workbook(output)
@@ -78,23 +84,20 @@ def gantt_to_excel(data: pd.DataFrame, start_col: str, end_col: str, duration_co
     cell_colour.set_bg_color(colour)
     worksheet = workbook.add_worksheet('Chart')
 
-    data[start_col] = pd.to_datetime(data[start_col])
-    data[end_col] = pd.to_datetime(data[end_col])
     min_date, max_date = data[start_col].min(), data[end_col].max()
-
     date_range = generate_date_series(min_date, max_date)
 
     for col, day in enumerate(date_range):
         worksheet.write(0, col+1, day, date_format)
 
-    endpoints = zip(data[start_col], data[end_col])
-    for row, task in enumerate(data[description]):
+    endpoints = zip(data[start_col], data[end_col], data['priority_col'])
+    for task in data[description]:
+        start, end, row = next(endpoints)
         worksheet.write(row + 1, 0, task, bold_format)
-        start, end = next(endpoints)
         start_index = where(start, date_range) + 1
         end_index = where(end, date_range) + 2
 
-        for col in range(start_index, end_index):
+        for col in range(start_index, end_index, ):
             worksheet.write(row + 1, col, symbol, cell_colour)
 
     workbook.close()
