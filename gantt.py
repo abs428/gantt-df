@@ -1,5 +1,29 @@
 """
 Script that creates simple Gantt charts from pandas DataFrames.
+
+Typical usage is as follows:
+>>> import pandas as pd
+>>> from gantt import gantt_to_excel
+>>> # The data is read from a file in practice
+>>> data = pd.DataFrame(
+    {'START DATE': ['2021-01-06',
+                    '2021-01-06',
+                    '2021-01-07',
+                    '2021-01-13'],
+ 'END DATE': ['2021-01-08',
+            '2021-01-12',
+            '2021-01-12',
+            '2021-01-21'],
+ 'TASK': ['Define components',
+        'Research',
+        'Requirement gathering',
+        'Build demo'],
+ 'DURATION (days)': [3, 5, 4, 7]}
+)
+>>> print(data.columns)
+Index(['START DATE', 'END DATE', 'TASK', 'DURATION (days)'], dtype='object')
+>>> gantt_to_excel(data = data, start_col = "START DATE", end_col = "END DATE", 
+               duration_col = "DURATION (days)", description = 'TASK', output = 'out_test.xlsx')
 """
 
 import pandas as pd
@@ -14,7 +38,7 @@ DAYS = tuple(
 
 
 def is_workday(
-    date: str, weekend: typing.Iterable, holidays: typing.Iterable = {}
+    date: str, weekend: typing.Iterable[str], holidays: typing.Iterable[str] = {}
 ) -> bool:
     """Helper function that returns True if the input is a workday. Optional argument `holidays` is an iterable of holidays"""
     mapping = dict(enumerate(DAYS))
@@ -26,8 +50,8 @@ def is_workday(
 def generate_date_series(
     start_date: str,
     end_date: str,
-    weekend: typing.Iterable = {"saturday", "sunday"},
-    holidays: typing.Iterable = {},
+    weekend: typing.Iterable[str] = {"saturday", "sunday"},
+    holidays: typing.Iterable[str] = {},
 ):
     """Function that generates all the dates between the start date and end dates (both inclusive)
     after ignorning the holidays
@@ -63,7 +87,10 @@ def generate_date_series(
     )
 
 
-def where(date, date_range):
+def where(date: str, date_range: typing.Union[np.array, pd.Series]):
+    """Helper function that returns the index of `date` in an iterable `date_range`.
+    Assumes that `date` occurs only once in the iterable. Returns -1 if `date` is
+    not found."""
     return np.cumsum(np.flip(date_range == date)).sum() - 1
 
 
@@ -77,7 +104,45 @@ def gantt_to_excel(
     date_format: str = "d-m-yyyy",
     colour: str = "f79646",
     symbol: str = "",
+    only_workdays: bool = True,
+    holidays: typing.Iterable[str] = {},
 ):
+    """Function that converts a DataFrame into Gantt chart in an Excel spreadsheet.
+
+    data: pd.DataFrame
+        Input dataframe containing start and end dates, durations and descriptions of
+        every task
+
+    start_col: str
+        Column that contains the start dates of every task
+
+    end_col: str
+        Column that contains the end dates of every task
+
+    duration_col: str
+        Column that contains the duration (in days) for every task
+
+    output: str
+        Name of the output file to be generated. Typically has the extension of .xls / .xlsx
+
+    date_format: str, default="d-m-yyyy"
+        The formatting of the dates in the output. The supported options can be found at
+        https://xlsxwriter.readthedocs.io/working_with_dates_and_time.html#working-with-dates-and-time
+
+    colour: str, default="f79646"
+        Sets the colour of the bars in the generated Gantt chart. The default is a shade of
+        orange. A colour pallette of reference is http://wordfaqs.ssbarnhill.com/Word%202007%20Color%20Swatches.pdf
+
+    symbol: str, default=""
+        Displays symbols in the bars populated in the Gantt chart. Blank by default. Can be
+        used to simulate ASCII-like output
+
+    only_workdays: bool, default=True
+        Flag for whether only workdays are displayed on the chart
+
+    holidays: Iterable[str], default={}
+        Optional list of holidays
+    """
     assert {start_col, end_col, duration_col, description}.issubset(
         data.columns
     ), "Some of the columns are not present in the data"
@@ -110,7 +175,10 @@ def gantt_to_excel(
     worksheet = workbook.add_worksheet("Chart")
 
     min_date, max_date = data[start_col].min(), data[end_col].max()
-    date_range = generate_date_series(min_date, max_date)
+    if only_workdays:
+        date_range = generate_date_series(min_date, max_date, holidays=holidays)
+    else:
+        date_range = generate_date_series(min_date, max_date, {}, {})
 
     for col, day in enumerate(date_range):
         worksheet.write(0, col + 1, day, date_format)
